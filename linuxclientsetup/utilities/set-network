@@ -25,15 +25,15 @@
 source /opt/karoshi/linuxclientsetup/utilities/common
 
 if [[ $EUID -ne 0 ]]; then
-	echo "ERROR: Must be running as effective root" >&2
-	info_alert "Privilage Error" "This script must be run as root"
+	echo $"ERROR: Must be running as effective root" >&2
+	info_alert $"Privilege Error" $"This script must be run as root"
 	exit 1
 fi
 
 #Make sure /tmp/netlogon isn't already mounted
 if [[ $(mount | grep "^[^ ]* on /tmp/netlogon type cifs") ]]; then
-	echo "ERROR: /tmp/netlogon is already mounted - aborting" >&2
-	info_alert "System Error" "/tmp/netlogon is already mounted"
+	echo $"ERROR: /tmp/netlogon is already mounted - aborting" >&2
+	info_alert $"System Error" $"/tmp/netlogon is already mounted"
 	exit 1
 fi
 
@@ -54,7 +54,7 @@ function getMac {
 }
 
 function getClientSettings {
-	echo \#Asking for network settings >&11
+	echo \#$"Asking for network settings" >&11
 	while ! $client_settings; do
 		#Create network_int_list for use in combo box in yad
 		network_int_list=$NETWORKINT
@@ -63,8 +63,8 @@ function getClientSettings {
 			network_int_list="$network_int_list!$i"
 		done
 		#Get and set temporary network settings
-		understandableYad --form --title 'Network Settings' --text 'IP Address, Netmask and Gateway are not required if DHCP is selected' --wrap \
-							--field='Client Name' --field='Network Interface':CB --field='IP Address' --field='Netmask' --field='Gateway' --field='DHCP':CHK \
+		understandableYad --form --title $"Network Settings" --text $"IP Address, Netmask and Gateway are not required if DHCP is selected" --wrap \
+							--field=$"Hostname" --field=$"Network Interface":CB --field=$"IP Address" --field=$"Netmask" --field=$"Gateway" --field=$"DHCP":CHK \
 							--button='gtk-cancel:1' --button='gtk-ok:0' \
 							"$CLIENT_NAME" "$network_int_list" "$IPADDR" "$NETMASK" "$GATEWAY" "$dhcp"
 		CLIENT_NAME=`cut -d"|" -f1 <<< "$DATA" | sed 's/ //g'`
@@ -74,17 +74,17 @@ function getClientSettings {
 		GATEWAY=`cut -d"|" -f5 <<< "$DATA"`
 		dhcp=`cut -d"|" -f6 <<< "$DATA" | tr '[:upper:]' '[:lower:]'`
 		if [[ -z $CLIENT_NAME ]] || [[ -z $NETWORKINT ]]; then
-			info_alert "Error" "You must enter a client name and network interface"
+			info_alert $"Error" $"You must enter a client name and network interface"
 			continue
 		fi
 		if ! ( $dhcp || ( [[ $IPADDR =~ $IPREGEX ]] && [[ $NETMASK =~ $IPREGEX ]] && [[ $GATEWAY =~ $IPREGEX ]] ) ); then
-			info_alert "Error" "You must enter a valid IP address, netmask and gateway, or choose DHCP"
+			info_alert $"Error" $"You must enter a valid IP address, netmask and gateway, or choose DHCP"
 			continue
 		fi
 
 		if isWireless $NETWORKINT; then
-			understandableYad --form --title 'Wireless Network Settings' --text 'Wireless interface detected' --wrap \
-								--field='SSID' --field='WPA2-PSK Key' \
+			understandableYad --form --title $"Wireless Network Settings" --text $"Configure the wireless device" --wrap \
+								--field=$"SSID" --field=$"WPA2-PSK Key" \
 								--button='gtk-go-back:2' --button='gtk-cancel:1' --button='gtk-ok:0' \
 								"$wifi_ssid" "$wifi_key"
 			yad_status=$?
@@ -94,7 +94,7 @@ function getClientSettings {
 			wifi_ssid=`cut -d"|" -f1 <<< "$DATA"`
 			wifi_key=`cut -d"|" -f2 <<< "$DATA"`
 			if [[ -z $wifi_ssid ]] || [[ -z $wifi_key ]]; then
-				info_alert "Error" "You must enter an SSID and key"
+				info_alert $"Error" $"You must enter an SSID and key"
 				continue
 			fi
 		fi
@@ -187,20 +187,20 @@ echo "auto lo
 iface lo inet loopback
 auto $NETWORKINT
 iface $NETWORKINT inet dhcp" > /etc/network/interfaces
-exec 11> >(progress_info "Karoshi Setup" "Karoshi Client Setup: Network Configuration")
+exec 11> >(progress_info $"Karoshi Setup" $"Karoshi Client Setup: Network Configuration")
 
 function exitfunc {
-	info_alert "Configuration" "Configuration cancelled"
+	info_alert $"Configuration" $"Configuration cancelled"
 	echo 100 >&11
 	exit $1
 }
 
 echo 5 >&11
-echo \#Bringing down network interface >&11
+echo \#$"Bringing down network interface" >&11
 ifdown --force $NETWORKINT
 #Clear leases to only get one lease in file
 > /var/lib/dhcp/dhclient.$NETWORKINT.leases
-echo \#Bringing up network interface >&11
+echo \#$"Bringing up network interface" >&11
 timeout 20 ifup $NETWORKINT
 echo 10 >&11
 # flag forcesetpdc can be used to prevent automatic pdc guessing for testing purposes
@@ -212,7 +212,7 @@ while ! $pdc_set; do
 	unset SERVERIP
 	#We define exitfunc further down, so this just resets it
 	function exitfunc {
-		info_alert "Configuration" "Configuration cancelled"
+		info_alert $"Configuration" $"Configuration cancelled"
 		echo 100 >&11
 		exit $1
 	}
@@ -223,20 +223,20 @@ while ! $pdc_set; do
 		GATEWAY=`sed -n 's/.*option routers *\([0-9.]*\).*/\1/p' /var/lib/dhcp/dhclient.$NETWORKINT.leases`
 	elif $dhcp; then
 	#If we wanted a DHCP lease
-		info_alert "Error" "Did not get DHCP lease"
+		info_alert $"Error" $"Did not get DHCP lease"
 		dhcp=false
 		continue
 	else
 	#If we didn't get a DHCP lease
 		client_settings=false
 		echo 5 >&11
-		echo \#Bringing down network interface >&11
+		echo \#$"Bringing down network interface" >&11
 		ifdown $NETWORKINT
 		#Clear leases to only get one lease in file
 		> /var/lib/dhcp/dhclient.$NETWORKINT.leases
 		getClientSettings
 		writeNetworkSettings
-		echo \#Bringing up network interface >&11
+		echo \#$"Bringing up network interface" >&11
 		timeout 20 ifup $NETWORKINT
 		echo 10 >&11
 
@@ -245,7 +245,7 @@ while ! $pdc_set; do
 			continue
 		fi
 		if ! arping -f -c 2 $GATEWAY -I $NETWORKINT; then
-			info_alert "Error" "Cannot arping gateway $GATEWAY"
+			info_alert $"Error" $"Cannot contact gateway $GATEWAY"
 			continue
 		fi
 	fi
@@ -258,7 +258,7 @@ while ! $pdc_set; do
 
 	#exitfunc if the user cancelled selecting a PDC
 	function exitfunc {
-		info_alert "Network Settings" "Not configuring for Karoshi Server"
+		info_alert $"Network Settings" $"Not configuring for Karoshi Server"
 		karoshi-manage-flags set nokaroshi
 		echo 100 >&11
 		exit 0
@@ -266,15 +266,15 @@ while ! $pdc_set; do
 
 	#Get PDC information
 	if ! [[ $SERVERIP ]]; then
-		understandableYad --form --title 'Network Settings' \
-						--field='PDC IP Address' \
-						--button='Skip:1' --button='gtk-ok:0' \
+		understandableYad --form --title $"Network Settings" \
+						--field=$"Primary Domain Controller IP Address" \
+						--button=$"Skip":1 --button='gtk-ok:0' \
 						"$SERVERIP"
 		SERVERIP=`cut -d"|" -f1 <<< "$DATA" | sed 's/ //g'`
 		manual_pdc=true
 	fi
 
-	echo \#Attempting to mount netlogon >&11
+	echo \#$"Attempting automatic configuration" >&11
 	if mount.cifs //$SERVERIP/netlogon /tmp/netlogon -o guest,nounix; then
 		#Only check for automatic network settings if this was not a manual setting
 		if ! $manual_pdc; then
@@ -290,14 +290,14 @@ while ! $pdc_set; do
 			pdc_set=true
 		fi
 	else
-		$manual_pdc && info_alert "Error" "Invalid PDC"
+		$manual_pdc && info_alert $"Error" $"Invalid PDC"
 		pdc_set=false
 		dhcp=false
 	fi
 done
 
 echo 20 >&11
-echo \#Setting network configuration >&11
+echo \#$"Setting network configuration" >&11
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #At this point it is assumed that a PDC can be contacted
@@ -307,7 +307,7 @@ karoshi-manage-flags unset nokaroshi
 
 #exitfunc to unmount the share, and exit
 function exitfunc {
-	info_alert "Error" "Configuration cancelled"
+	info_alert $"Error" $"Configuration cancelled"
 	umount /tmp/netlogon
 	echo 100 >&11
 	exit $1
@@ -352,7 +352,7 @@ echo 25 >&11
 #Final settings for network
 ####################
 function exitfunc {
-	info_alert "Error" "Fatal Error:\n Cannot find domain information on server"
+	info_alert $"Error" $"Fatal Error:\n Cannot find domain information on server"
 	umount /tmp/netlogon
 	echo 100 >&11
 	exit $1
@@ -363,7 +363,7 @@ if [[ -f /tmp/netlogon/domain_information/main_server ]]; then PDC=` < /tmp/netl
 ! ( [[ $PDC ]] && [[ $NETMASK =~ $IPREGEX ]] && [[ $GATEWAY =~ $IPREGEX ]] ) && exitfunc 1
 
 function exitfunc {
-	info_alert "Error" "Configuration cancelled"
+	info_alert $"Error" $"Configuration cancelled"
 	umount /tmp/netlogon
 	echo 100 >&11
 	exit $1
@@ -371,18 +371,18 @@ function exitfunc {
 #If NETWORKINT is a wireless interface, and don't already have wireless information,
 # get wireless information from server
 if isWireless $NETWORKINT && ( [[ -z $wifi_ssid ]] || [[ -z $wifi_key ]] ); then
-	echo \#Checking wireless network settings >&11
+	echo \#$"Checking wireless network settings" >&11
 	[[ -f /tmp/netlogon/domain_information/wifi_ssid ]] && wifi_ssid=` < /tmp/netlogon/domain_information/wifi_ssid`
 	[[ -f /tmp/netlogon/domain_information/wifi_key ]] && wifi_key=` < /tmp/netlogon/domain_information/wifi_key`
 	if [[ -z $wifi_ssid ]] || [[ -z $wifi_key ]]; then
 	#Couldn't find wireless information on server, but that's OK
 	# because we can just prompt the user for it
-		understandableYad --form --title 'Wireless Network Settings' \
-							--field='SSID' --field='WPA2-PSK Key' \
+		understandableYad --form --title $"Wireless Network Settings" \
+							--field=$"SSID" --field=$"WPA2-PSK Key" \
 							--button='gtk-cancel:1' --button='gtk-ok:0' \
 							"$wifi_ssid" "$wifi_key"
 	fi
-	echo \#Setting network configuration >&11
+	echo \#$"Setting network configuration" >&11
 fi
 
 echo 30 >&11
@@ -399,7 +399,7 @@ karoshi-manage-flags set networkset
 #############
 
 function reconfigureNetwork {
-	echo \#Setting network configuration >&11
+	echo \#$"Setting network configuration" >&11
 
 	#Do network configuration and remount netlogon
 	umount /tmp/netlogon
@@ -416,14 +416,14 @@ DNSSUFFIX="internal"
 source /opt/karoshi/linuxclientsetup/utilities/nsswitch-funcs
 
 function exitfunc {
-	info_alert "Error" "Fatal Error:\n Cannot find domain information on server"
+	info_alert $"Error" $"Fatal Error:\n Cannot find domain information on server"
 	umount /tmp/netlogon
 	echo 100 >&11
 	exit $1
 }
 
 echo 50 >&11
-echo \#Performing domain setup >&11
+echo \#$"Performing domain setup" >&11
 
 if [[ -f /tmp/netlogon/domain_information/samba4 ]]; then
 	#Using a Samba4 domain
@@ -436,14 +436,14 @@ if [[ -f /tmp/netlogon/domain_information/samba4 ]]; then
 	reconfigureNetwork
 
 	echo 60 >&11
-	echo \#Copying files >&11
+	echo \#$"Copying files" >&11
 	cp -rfbS '.karoshi-common~' /opt/karoshi/linuxclientsetup/config-files/common/* /
 	cp -rfbS '.karoshi-samba4~' /opt/karoshi/linuxclientsetup/config-files/samba4/* /
 	sed -i "s/CHANGETHISREALM/$dns_domain_caps/g" /etc/krb5.conf
 	sed -i "s/CHANGETHISDNS/$DNSSUFFIX/g" /etc/ssh/ssh_config
 
 	echo 65 >&11
-	echo \#Configuring Samba >&11
+	echo \#$"Configuring services" >&11
 
 	samba_domain=` < /tmp/netlogon/domain_information/domain_name`
 	[[ -z $samba_domain ]] && exitfunc 1
@@ -454,10 +454,10 @@ if [[ -f /tmp/netlogon/domain_information/samba4 ]]; then
 
 	#Join domain
 	echo 70 >&11
-	echo \#Joining domain >&11
+	echo \#$"Joining domain" >&11
 
 	function exitfunc {
-		info_alert "Error" "Not joining domain - system may be in an inconsistent state"
+		info_alert $"Error" $"Domain configuration cancelled - system may be in an inconsistent state"
 		umount /tmp/netlogon
 		echo 100 >&11
 		exit 1
@@ -465,8 +465,8 @@ if [[ -f /tmp/netlogon/domain_information/samba4 ]]; then
 
 	join_status=1
 	while [[ $join_status -ne 0 ]]; do
-		understandableYad --form --title='Domain Access' --wrap \
-							--text 'Enter in a username and password to join the domain' --field='Username' --field='Password':H \
+		understandableYad --form --title=$"Join Domain" --wrap \
+							--text $"Enter credentials to join the domain" --field=$"Username" --field=$"Password":H \
 							--button='gtk-cancel:1' --button='gtk-ok:0'
 		domain_username=`cut -d"|" -f1 <<< "$DATA"`
 		domain_password=`cut -d"|" -f2 <<< "$DATA"`
@@ -475,7 +475,7 @@ if [[ -f /tmp/netlogon/domain_information/samba4 ]]; then
 	done
 
 	echo 75 >&11
-	echo \#Finalising domain configuration >&11
+	echo \#$"Finalising domain configuration" >&11
 
 	DOMAINTYPE=samba4
 	domain_sid=` < /tmp/netlogon/domain_information/domain_sid`
@@ -499,7 +499,7 @@ if [[ -f /tmp/netlogon/domain_information/samba4 ]]; then
 	start sssd
 else
 	#Using a Samba3 domain
-	info_alert "Error" "This version of Karoshi Client requires Karoshi Server version 9.0 or above"
+	info_alert $"Error" $"This version of Karoshi Client requires Karoshi Server version 9.0 or above"
 	umount /tmp/netlogon
 	echo 100 >&11
 	exit 1
@@ -510,7 +510,7 @@ fi
 ####################
 
 echo 80 >&11
-echo \#Finalising network configuration >&11
+echo \#$"Finalising network configuration" >&11
 
 #Set NTP settings
 sed -i "s/### KAROSHI HOOK ###/server $PDC.$DNSSUFFIX/" /etc/ntp.conf
@@ -526,7 +526,7 @@ fi
 echo 90 >&11
 umount /tmp/netlogon
 function exitfunc {
-	info_alert "Configuration" "Configuration cancelled"
+	info_alert $"Configuration" $"Configuration cancelled"
 	echo 100 >&11
 	exit $1
 }
